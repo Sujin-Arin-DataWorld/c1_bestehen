@@ -167,7 +167,7 @@ def main():
     st.title("🇩🇪 German Grammar Flashcard")
     st.markdown("단어와 예문을 보고, 문법 구조까지 한번에 학습하세요!")
     
-    df = load_data('C1_telc_Vocab_Example_20_entries.csv')
+    df = load_data('C1_telc_Voca.csv')
 
     if df is None:
         st.stop()
