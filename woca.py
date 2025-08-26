@@ -1,5 +1,5 @@
-# German C1 TELC Flashcard App (v6 - UI Layout Update)
-# 독일어 C1 TELC 준비용 플래시카드 앱 (v6 - UI 레이아웃 업데이트)
+# German C1 TELC Flashcard App (v7 - Complement Structure Update)
+# 독일어 C1 TELC 준비용 플래시카드 앱 (v7 - complement_structure 표시 기능 강화)
 
 import streamlit as st
 import pandas as pd
@@ -28,18 +28,26 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# --- 2. 핵심 함수들 (수정 없음) ---
+# --- 2. 핵심 함수들 ---
 
 @st.cache_data
 def load_data(file_path):
     try:
-        return pd.read_csv(file_path)
+        # UTF-8-SIG 인코딩을 사용하여 BOM(Byte Order Mark)이 있는 CSV 파일도 처리
+        return pd.read_csv(file_path, encoding='utf-8-sig')
     except FileNotFoundError:
         st.error(f"데이터 파일({file_path})을 찾을 수 없습니다. GitHub 저장소에 파일이 올바르게 포함되었는지 확인하세요.")
         return None
+    except Exception as e:
+        st.error(f"CSV 파일을 읽는 중 오류가 발생했습니다: {e}")
+        return None
 
 def standardize_columns(df):
+    """다양한 CSV 열 이름을 표준화된 이름으로 매핑합니다."""
     columns_lower = [str(col).lower().strip() for col in df.columns]
+    
+    # ✨✨✨ 핵심 수정 부분 (1/2) ✨✨✨
+    # complement_structure 컬럼을 인식하도록 추가
     column_candidates = {
         'german_word': ['german_word', 'german', 'word', 'item', 'deutsch', 'wort'],
         'korean_meaning': ['korean_meaning', 'korean', 'meaning', 'bedeutung', '의미', '뜻'],
@@ -51,6 +59,7 @@ def standardize_columns(df):
         'reflexive': ['reflexive', 'reflexiv', '재귀'],
         'adj_case': ['adj_case', 'kasus (adj)'],
         'adj_prep': ['adj_prep', 'präposition (adj)'],
+        'complement_structure': ['complement_structure', 'struktur', '문장 구조'],
         'theme': ['theme', 'type', 'category', 'thema', 'kategorie', '테마', '유형']
     }
     found_mapping = {}
@@ -84,6 +93,7 @@ def display_question_card(row, mapping):
     """, unsafe_allow_html=True)
 
 def display_answer_card(row, mapping):
+    """[뒷면] 정답 카드 표시 (모든 정보)"""
     german_word = safe_get(row, 'german_word', mapping, '단어 없음')
     korean_meaning = safe_get(row, 'korean_meaning', mapping, '의미 없음')
     pos = safe_get(row, 'pos', mapping, '품사 미상')
@@ -106,26 +116,31 @@ def display_answer_card(row, mapping):
         """, unsafe_allow_html=True)
     
     grammar_info = []
+    # 동사인 경우
     if "Verb" in pos:
         reflexive = safe_get(row, 'reflexive', mapping)
         if reflexive.lower() in ['ja', 'yes', 'true']:
             grammar_info.append("🔄 **재귀 동사 (Reflexives Verb)**")
         
+        # ✨✨✨ 핵심 수정 부분 (2/2) ✨✨✨
+        # complement_structure를 최우선으로 표시하는 로직으로 변경
+        complement_structure = safe_get(row, 'complement_structure', mapping)
         prep = safe_get(row, 'verb_prep', mapping)
         case = safe_get(row, 'verb_case', mapping)
+
+        # 1. complement_structure가 있으면 최우선으로 표시
+        if complement_structure:
+            grammar_info.append(f"구조: `{complement_structure}`")
         
-        structure_displayed = False
-        
-        if prep:
-            structure_displayed = True
+        # 2. 없다면, 이전처럼 prep과 case로 조합 (하위 호환성)
+        elif prep:
             if case and case.lower() in prep.lower():
                 grammar_info.append(f"구조: `{prep}`")
             elif case:
                 grammar_info.append(f"구조: `{prep}` + **{case}**")
             else:
                 grammar_info.append(f"구조: `{prep}`")
-        
-        if not structure_displayed and case:
+        elif case:
             case_lower = case.lower()
             if 'dat' in case_lower and 'akk' in case_lower:
                 grammar_info.append("구조: **jmdm. (Dat) + etw. (Akk)**")
@@ -138,6 +153,7 @@ def display_answer_card(row, mapping):
             else:
                 grammar_info.append(f"구조: **{case}-Ergänzung**")
 
+    # 형용사인 경우
     elif "Adjektiv" in pos:
         prep = safe_get(row, 'adj_prep', mapping)
         case = safe_get(row, 'adj_case', mapping)
@@ -149,10 +165,12 @@ def display_answer_card(row, mapping):
             else:
                 grammar_info.append(f"구조: `{prep}`")
             
+    # 테마 정보
     theme = safe_get(row, 'theme', mapping)
     if theme:
         grammar_info.append(f"테마: {theme}")
         
+    # 최종적으로 문법 정보 표시
     if grammar_info:
         info_html = "".join([f"<li>{info}</li>" for info in grammar_info])
         st.markdown(f"""
@@ -167,9 +185,12 @@ def main():
     st.title("🇩🇪 German Grammar Flashcard")
     st.markdown("단어와 예문을 보고, 문법 구조까지 한번에 학습하세요!")
     
+    # GitHub 저장소에 있는 CSV 파일을 직접 로드합니다.
+    # 파일 이름은 실제 업로드된 파일 이름과 정확히 일치해야 합니다.
     df = load_data('C1_telc_Voca.csv')
 
     if df is None:
+        st.warning("데이터를 불러올 수 없습니다. CSV 파일이 GitHub 저장소에 올바르게 있는지 확인해주세요.")
         st.stop()
 
     if 'data_loaded' not in st.session_state:
@@ -190,11 +211,8 @@ def main():
         st.progress((current_idx_pos + 1) / len(df))
         st.write(f"**진행률:** {current_idx_pos + 1}/{len(df)}")
         st.markdown("---")
-
-        # ✨✨✨ 핵심 수정 부분 ✨✨✨
-        # 버튼 생성 코드를 카드 표시 코드 위로 이동시켰습니다.
         
-        # --- 4. 네비게이션 버튼 (위치 변경) ---
+        # 네비게이션 버튼
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             if st.button("⬅️ 이전"):
@@ -223,13 +241,13 @@ def main():
                 st.session_state.show_answer = False
                 st.rerun()
 
-        # --- 5. 플래시카드 표시 ---
+        # 플래시카드 표시
         if st.session_state.show_answer:
             display_answer_card(current_row, st.session_state.mapping)
         else:
             display_question_card(current_row, st.session_state.mapping)
         
-        # 사이드바 (수정 없음)
+        # 사이드바
         with st.sidebar:
             st.header("📊 학습 현황")
             st.metric("총 단어 수", len(df))
