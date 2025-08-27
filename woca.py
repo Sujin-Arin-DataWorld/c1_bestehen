@@ -1,5 +1,5 @@
-# German C1 TELC Flashcard App (v10 - Final Logic Fix)
-# 독일어 C1 TELC 준비용 플래시카드 앱 (v10 - 최종 로직 수정)
+# German C1 TELC Flashcard App (v12 - Final Robust Version)
+# 독일어 C1 TELC 준비용 플래시카드 앱 (v12 - 최종 안정화 버전)
 
 import streamlit as st
 import pandas as pd
@@ -32,11 +32,14 @@ st.markdown("""
 
 @st.cache_data
 def load_data(file_path):
+    """가장 안정적인 방법으로 CSV 파일을 로드합니다."""
     try:
-        # 더 유연한 Python 파서를 사용하여 CSV 파일 읽기
-        return pd.read_csv(file_path, encoding='utf-8-sig', engine='python')
+        df = pd.read_csv(file_path, encoding='utf-8-sig', engine='python')
+        # CSV 로드 후 컬럼 이름의 앞뒤 공백을 모두 제거합니다. (가장 흔한 오류 원인)
+        df.columns = df.columns.str.strip()
+        return df
     except FileNotFoundError:
-        st.error(f"데이터 파일({file_path})을 찾을 수 없습니다. GitHub 저장소에 파일이 올바르게 포함되었는지 확인하세요.")
+        st.error(f"데이터 파일 '{file_path}'을(를) 찾을 수 없습니다. GitHub 저장소에 파일이 올바르게 포함되었는지, 파일 이름이 정확한지 확인하세요.")
         return None
     except Exception as e:
         st.error(f"CSV 파일을 읽는 중 오류가 발생했습니다: {e}")
@@ -49,13 +52,10 @@ def standardize_columns(df):
         'german_word': ['german_word', 'german', 'word', 'item', 'deutsch', 'wort'],
         'korean_meaning': ['korean_meaning', 'korean', 'meaning', 'bedeutung', '의미', '뜻'],
         'german_example': ['german_example_de', 'german_example', 'example', 'beispiel', '예문', '예시'],
-        'ko_example_translation': ['ko_example_translation', 'korean_example', '예문 번역', '번역'],
         'pos': ['pos', 'part of speech', 'wortart', '품사'],
         'verb_case': ['verb_case', 'kasus (verb)'],
         'verb_prep': ['verb_prep', 'präposition (verb)'],
         'reflexive': ['reflexive', 'reflexiv', '재귀'],
-        'adj_case': ['adj_case', 'kasus (adj)'],
-        'adj_prep': ['adj_prep', 'präposition (adj)'],
         'complement_structure': ['complement_structure', 'struktur', '문장 구조'],
         'theme': ['theme', 'type', 'category', 'thema', 'kategorie', '테마', '유형']
     }
@@ -74,9 +74,10 @@ def standardize_columns(df):
     return df, found_mapping
 
 def safe_get(row, key, mapping, default=""):
+    """Pandas의 isna를 사용하여 더 안정적으로 값을 가져옵니다."""
     if key in mapping and mapping[key] in row:
         value = row[mapping[key]]
-        return str(value) if pd.notna(value) else default
+        return str(value) if not pd.isna(value) and str(value).strip() != '' else default
     return default
 
 def display_question_card(row, mapping):
@@ -103,15 +104,13 @@ def display_answer_card(row, mapping):
     """, unsafe_allow_html=True)
     
     german_example = safe_get(row, 'german_example', mapping)
-    ko_example = safe_get(row, 'ko_example_translation', mapping)
     if german_example:
         st.markdown(f"""
         <div class="example-box">
-            <strong>🔸 예문:</strong> {german_example}<br>
-            <strong>🔸 번역:</strong> {ko_example if ko_example else '번역 없음'}
+            <strong>🔸 예문:</strong> {german_example}
         </div>
         """, unsafe_allow_html=True)
-    
+
     grammar_info = []
     # 동사인 경우
     if "Verb" in pos:
@@ -120,50 +119,40 @@ def display_answer_card(row, mapping):
             grammar_info.append("🔄 **재귀 동사 (Reflexives Verb)**")
         
         # ✨✨✨ 핵심 수정 부분 ✨✨✨
-        # complement_structure를 최우선으로 표시하도록 조건문 순서 변경
+        # complement_structure를 최우선으로 사용하고, 없으면 다른 정보를 사용하도록 로직을 명확히 함
         complement_structure = safe_get(row, 'complement_structure', mapping)
         prep = safe_get(row, 'verb_prep', mapping)
         case = safe_get(row, 'verb_case', mapping)
 
+        structure_text = ""
         # 1. complement_structure가 있으면 무조건 그것부터 표시
         if complement_structure:
-            grammar_info.append(f"구조: `{complement_structure}`")
-        
-        # 2. complement_structure가 없을 때만, prep/case 조합으로 표시 (하위 호환)
+            structure_text = f"`{complement_structure}`"
+        # 2. complement_structure가 없을 때만, prep/case 조합으로 표시
         elif prep:
             if case and case.lower() in prep.lower():
-                grammar_info.append(f"구조: `{prep}`")
+                structure_text = f"`{prep}`"
             elif case:
-                grammar_info.append(f"구조: `{prep}` + **{case}**")
+                structure_text = f"`{prep}` + **{case}**"
             else:
-                grammar_info.append(f"구조: `{prep}`")
-        
+                structure_text = f"`{prep}`"
         # 3. 위 두 조건이 모두 아닐 때만, case 정보로 일반적인 구조 표시
         elif case:
             case_lower = case.lower()
             if 'dat' in case_lower and 'akk' in case_lower:
-                grammar_info.append("구조: **jmdm. (Dat) + etw. (Akk)**")
+                structure_text = "**jmdm. (Dat) + etw. (Akk)**"
             elif 'gen' in case_lower:
-                grammar_info.append("구조: **einer Sache (Gen)**")
+                structure_text = "**einer Sache (Gen)**"
             elif 'akk' in case_lower:
-                grammar_info.append("구조: **jmdn./etw. (Akk)**")
+                structure_text = "**jmdn./etw. (Akk)**"
             elif 'dat' in case_lower:
-                grammar_info.append("구조: **jmdm./etw. (Dat)**")
+                structure_text = "**jmdm./etw. (Dat)**"
             else:
-                grammar_info.append(f"구조: **{case}-Ergänzung**")
+                structure_text = f"**{case}-Ergänzung**"
+        
+        if structure_text:
+            grammar_info.append(f"구조: {structure_text}")
 
-    # 형용사인 경우
-    elif "Adjektiv" in pos:
-        prep = safe_get(row, 'adj_prep', mapping)
-        case = safe_get(row, 'adj_case', mapping)
-        if prep:
-            if case and case.lower() in prep.lower():
-                grammar_info.append(f"구조: `{prep}`")
-            elif case:
-                grammar_info.append(f"구조: `{prep}` + **{case}**")
-            else:
-                grammar_info.append(f"구조: `{prep}`")
-            
     # 테마 정보
     theme = safe_get(row, 'theme', mapping)
     if theme:
@@ -184,7 +173,7 @@ def main():
     st.title("🇩🇪 German Grammar Flashcard")
     st.markdown("단어와 예문을 보고, 문법 구조까지 한번에 학습하세요!")
     
-    # GitHub 저장소의 CSV 파일을 직접 로드합니다.
+    # 사용자님이 알려주신 정확한 파일 이름으로 수정
     df = load_data('c1_telc_voca.csv')
 
     if df is None:
@@ -200,6 +189,7 @@ def main():
             st.session_state.data_loaded = True
     
     if st.session_state.data_loaded:
+        # ... (이하 버튼 및 사이드바 로직은 이전과 동일) ...
         indices = st.session_state.indices
         current_idx_pos = st.session_state.current_idx_pos
         current_word_index = indices[current_idx_pos]
@@ -213,29 +203,18 @@ def main():
         with col1:
             if st.button("⬅️ 이전"):
                 if current_idx_pos > 0:
-                    st.session_state.current_idx_pos -= 1
-                    st.session_state.show_answer = False
-                    st.rerun()
-        
+                    st.session_state.current_idx_pos -= 1; st.session_state.show_answer = False; st.rerun()
         with col2:
             button_text = "🔄 문제로" if st.session_state.show_answer else "💡 정답 보기"
             if st.button(button_text, use_container_width=True):
-                st.session_state.show_answer = not st.session_state.show_answer
-                st.rerun()
-
+                st.session_state.show_answer = not st.session_state.show_answer; st.rerun()
         with col3:
             if st.button("➡️ 다음"):
                 if current_idx_pos < len(df) - 1:
-                    st.session_state.current_idx_pos += 1
-                    st.session_state.show_answer = False
-                    st.rerun()
-        
+                    st.session_state.current_idx_pos += 1; st.session_state.show_answer = False; st.rerun()
         with col4:
             if st.button("🔀 섞기"):
-                random.shuffle(st.session_state.indices)
-                st.session_state.current_idx_pos = 0
-                st.session_state.show_answer = False
-                st.rerun()
+                random.shuffle(st.session_state.indices); st.session_state.current_idx_pos = 0; st.session_state.show_answer = False; st.rerun()
 
         if st.session_state.show_answer:
             display_answer_card(current_row, st.session_state.mapping)
@@ -243,15 +222,9 @@ def main():
             display_question_card(current_row, st.session_state.mapping)
         
         with st.sidebar:
-            st.header("📊 학습 현황")
-            st.metric("총 단어 수", len(df))
-            st.metric("현재 위치", current_idx_pos + 1)
-            st.metric("남은 단어", len(df) - current_idx_pos - 1)
-            
+            st.header("📊 학습 현황"); st.metric("총 단어 수", len(df)); st.metric("현재 위치", current_idx_pos + 1); st.metric("남은 단어", len(df) - current_idx_pos - 1)
             if 'pos' in st.session_state.mapping:
-                pos_col = st.session_state.mapping['pos']
-                st.write("**품사별 분포:**")
-                st.bar_chart(df[pos_col].value_counts())
+                pos_col = st.session_state.mapping['pos']; st.write("**품사별 분포:**"); st.bar_chart(df[pos_col].value_counts())
 
 if __name__ == "__main__":
     main()
