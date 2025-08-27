@@ -185,7 +185,7 @@ def main():
     st.markdown("단어와 예문을 보고, 문법 구조까지 한번에 학습하세요!")
     
     # GitHub 저장소의 CSV 파일을 직접 로드합니다.
-    df = load_data('C1_telc_Voca.csv')
+    df = load_data('c1_telc_voca.csv')
 
     if df is None:
         st.stop()
