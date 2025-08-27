@@ -1,11 +1,13 @@
-# German C1 TELC Flashcard App (v14.2 - Keep UI, Flip only on white area)
-# 기존 UI 유지 + ko_example_translation 표시 + 흰색 카드 영역 클릭 시에만 뒤집기
+# German C1 TELC Flashcard App (v14.3 - Keep UI, Flip on white card only)
+# - 기존 UI 유지
+# - 정답 카드에 ko_example_translation 표시
+# - 흰색 카드 영역과 정확히 같은 크기의 투명 오버레이로만 뒤집기
 
 import streamlit as st
 import pandas as pd
 import random
 
-# --- 1) 페이지 설정 & 기본 스타일(원본 유지, 번역 라인 추가) ---
+# --- 1) 페이지 설정 & 기본 스타일 (원본 유지, 번역 라인만 추가) ---
 st.set_page_config(page_title="German Grammar Flashcard", page_icon="🇩🇪", layout="centered")
 
 st.markdown("""
@@ -23,49 +25,83 @@ st.markdown("""
         display: flex; 
         flex-direction: column; 
         justify-content: center; 
-        position: relative; /* 오버레이 정렬 기준 */
+        position: relative; /* 오버레이 기준 */
     }
-    .german-word { font-size: 2.8em; font-weight: bold; color: #2c3e50; }
-    .korean-meaning { font-size: 2.2em; color: #e74c3c; margin: 20px 0; font-weight: bold; }
+    .german-word { 
+        font-size: 2.8em; 
+        font-weight: bold; 
+        color: #2c3e50; 
+    }
+    .korean-meaning { 
+        font-size: 2.2em; 
+        color: #e74c3c; 
+        margin: 20px 0; 
+        font-weight: bold; 
+    }
     .pos-badge { 
-        background: #007bff; color: white; padding: 8px 16px; border-radius: 20px; 
-        font-size: 1.1em; display: inline-block; margin-top: 15px; border: 1px solid #0056b3; 
+        background: #007bff; 
+        color: white; 
+        padding: 8px 16px; 
+        border-radius: 20px; 
+        font-size: 1.1em; 
+        display: inline-block; 
+        margin-top: 15px; 
+        border: 1px solid #0056b3; 
     }
     .example-box { 
-        background: #f8f9fa; border-left: 5px solid #007bff; border-radius: 8px; 
-        padding: 15px; margin: 20px 0; text-align: left; font-size: 1.1em; color: #333; 
+        background: #f8f9fa; 
+        border-left: 5px solid #007bff; 
+        border-radius: 8px; 
+        padding: 15px; 
+        margin: 20px 0; 
+        text-align: left; 
+        font-size: 1.1em; 
+        color: #333; 
     }
-    .front-example { font-size: 1.4em; color: #555; margin-top: 10px; font-style: italic; }
-    .grammar-info { background: #e8f5e8; border: 1px solid #28a745; border-radius: 8px; padding: 15px; margin-top: 20px; text-align: left; color: #155724; }
-    .grammar-title { font-weight: bold; color: #155724; margin-bottom: 10px; font-size: 1.2em; }
-    .case-structure { background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 12px; margin: 10px 0; font-family: monospace; font-size: 1.1em; color: #856404; }
-    .grammar-explanation { background: #e7f3ff; border-left: 4px solid #007bff; padding: 12px; margin: 10px 0; font-size: 1.0em; color: #004085; }
+    .front-example { 
+        font-size: 1.4em; 
+        color: #555; 
+        margin-top: 10px; 
+        font-style: italic; 
+    }
+    .grammar-info { 
+        background: #e8f5e8; 
+        border: 1px solid #28a745; 
+        border-radius: 8px; 
+        padding: 15px; 
+        margin-top: 20px; 
+        text-align: left; 
+        color: #155724; 
+    }
+    .grammar-title { 
+        font-weight: bold; 
+        color: #155724; 
+        margin-bottom: 10px; 
+        font-size: 1.2em; 
+    }
+    .case-structure { 
+        background: #fff3cd; 
+        border: 1px solid #ffeaa7; 
+        border-radius: 8px; 
+        padding: 12px; 
+        margin: 10px 0; 
+        font-family: monospace; 
+        font-size: 1.1em; 
+        color: #856404; 
+    }
+    .grammar-explanation { 
+        background: #e7f3ff; 
+        border-left: 4px solid #007bff; 
+        padding: 12px; 
+        margin: 10px 0; 
+        font-size: 1.0em; 
+        color: #004085; 
+    }
     .ko-example-translation { margin-top: 6px; color: #444; }
-
-    /* ===== 오버레이 버튼: 카드 흰색 영역과 정확히 겹치기 ===== */
-    .flip-overlay {
-        position: absolute; 
-        inset: 0;               /* 상하좌우 0 → 부모(.flashcard-*) 흰 영역과 동일 */
-        z-index: 5;
-        border-radius: 15px;    /* 카드와 동일한 라운드 */
-        /* 버튼과 비슷한 포커스 테두리 제거 */
-        outline: none;
-    }
-    .flip-overlay > button {
-        width: 100%; height: 100%;
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-        color: transparent !important;       /* 텍스트 안 보이게 */
-        cursor: pointer;
-        padding: 0 !important; margin: 0 !important;
-    }
-    .flip-overlay > button:focus { outline: none !important; }
 </style>
 """, unsafe_allow_html=True)
 
-
-# --- 2) 유틸 함수들 ---
+# --- 2) 데이터 로딩 & 유틸 ---
 @st.cache_data
 def load_data(file_path):
     try:
@@ -141,22 +177,18 @@ def get_prep_explanation(prep_info):
     }
     return m.get(prep_info.lower().strip(), f"전치사: {prep_info}")
 
-
-# --- 3) 카드 그리기 (UI 그대로) + 오버레이 영역 클릭 토글 ---
-def draw_question_card(row, mapping):
+# --- 3) 카드 UI 렌더 (원본 유지) ---
+def display_question_card(row, mapping):
     german_word = safe_get(row, 'german_word', mapping, '단어 없음')
     german_example = safe_get(row, 'german_example', mapping)
     st.markdown(f"""
     <div class="flashcard-front">
         <div class="german-word">{german_word}</div>
         <div class="front-example">{german_example}</div>
-        <div class="flip-overlay" id="front-overlay"></div>
     </div>
     """, unsafe_allow_html=True)
-    # 오버레이 버튼(흰색 영역과 정확히 동일)
-    return st.button(" ", key="flip_front", help="카드를 클릭해서 정답 보기", args=None)
 
-def draw_answer_card(row, mapping):
+def display_answer_card(row, mapping):
     german_word = safe_get(row, 'german_word', mapping, '단어 없음')
     korean_meaning = safe_get(row, 'korean_meaning', mapping, '의미 없음')
     pos = safe_get(row, 'pos', mapping, '품사 미상')
@@ -166,7 +198,6 @@ def draw_answer_card(row, mapping):
         <div class="german-word">{german_word}</div>
         <div class="korean-meaning">{korean_meaning}</div>
         <div class="pos-badge">{pos}</div>
-        <div class="flip-overlay" id="back-overlay"></div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -181,11 +212,11 @@ def draw_answer_card(row, mapping):
         </div>
         """, unsafe_allow_html=True)
 
-    # 문법 정보(기존 유지)
+    # 문법 정보 (원본 로직 유지)
     grammar_info = []
     if "verb" in pos.lower() or "Verb" in pos:
         reflexive = safe_get(row, 'reflexive', mapping)
-        if reflexive.lower() in ['ja','yes','true']:
+        if reflexive.lower() in ['ja', 'yes', 'true']:
             grammar_info.append("🔄 **재귀동사 (Reflexives Verb)** - sich와 함께 사용")
 
         complement_structure = safe_get(row, 'complement_structure', mapping)
@@ -194,42 +225,100 @@ def draw_answer_card(row, mapping):
 
         if complement_structure:
             st.markdown(f"""
-            <div class="case-structure"><strong>📝 문장 구조:</strong> <code>{complement_structure}</code></div>
+            <div class="case-structure">
+                <strong>📝 문장 구조:</strong> <code>{complement_structure}</code>
+            </div>
             """, unsafe_allow_html=True)
+
             sl = complement_structure.lower()
             exps = []
             if 'dat' in sl and 'akk' in sl: exps.append("**3격 + 4격 지배**: 누구에게(3격) 무엇을(4격) 주는 동사")
-            elif 'dat' in sl: exps.append("**3격 지배**: 누구에게/무엇에게(간접목적)")
-            elif 'akk' in sl: exps.append("**4격 지배**: 무엇을/누구를(직접목적)")
+            elif 'dat' in sl: exps.append("**3격 지배**: 간접목적어")
+            elif 'akk' in sl: exps.append("**4격 지배**: 직접목적어")
             elif 'gen' in sl: exps.append("**2격 지배**: 소유/특별 의미관계")
             if exps:
                 st.markdown(f"""<div class="grammar-explanation">{'<br/>'.join(exps)}</div>""", unsafe_allow_html=True)
 
         if prep:
             st.markdown(f"""
-            <div class="grammar-explanation"><strong>🔗 전치사:</strong> <code>{prep}</code><br/>{get_prep_explanation(prep)}</div>
+            <div class="grammar-explanation">
+                <strong>🔗 전치사:</strong> <code>{prep}</code><br/>{get_prep_explanation(prep)}
+            </div>
             """, unsafe_allow_html=True)
         elif case and not complement_structure:
             ce = get_case_explanation(case)
             if ce:
-                st.markdown(f"""<div class="grammar-explanation"><strong>📋 격 지배:</strong> {case}<br/>{ce}</div>""", unsafe_allow_html=True)
+                st.markdown(f"""
+                <div class="grammar-explanation">
+                    <strong>📋 격 지배:</strong> {case}<br/>{ce}
+                </div>
+                """, unsafe_allow_html=True)
 
     elif "Nomen-Verb" in pos:
         cs = safe_get(row, 'complement_structure', mapping)
         if cs:
-            st.markdown(f"""<div class="case-structure"><strong>📝 명사-동사 구조:</strong> <code>{cs}</code></div>""", unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="case-structure">
+                <strong>📝 명사-동사 구조:</strong> <code>{cs}</code>
+            </div>
+            """, unsafe_allow_html=True)
 
     theme = safe_get(row, 'theme', mapping)
     if theme:
         grammar_info.append(f"🏷️ **테마**: {theme}")
     if grammar_info:
-        st.markdown(f"""<div class="grammar-info"><div class="grammar-title">📚 추가 정보</div><ul>{"".join([f"<li>{i}</li>" for i in grammar_info])}</ul></div>""", unsafe_allow_html=True)
+        st.markdown(
+            f"""<div class="grammar-info"><div class="grammar-title">📚 추가 정보</div><ul>{"".join([f"<li>{i}</li>" for i in grammar_info])}</ul></div>""",
+            unsafe_allow_html=True
+        )
 
-    # 오버레이 버튼(흰색 영역과 정확히 동일)
-    return st.button(" ", key="flip_back", help="카드를 클릭해서 문제로", args=None)
+# --- 4) '카드와 동일 크기' 투명 오버레이 (버튼 표시 완전 제거) ---
+def clickable_overlay(height_px=270, radius_px=15, key="overlay"):
+    """
+    카드 직후에 렌더해서 같은 높이로 정확히 덮어씌우는 투명 클릭 레이어.
+    - 시각 요소 0 (완전 투명)
+    - 카드 바깥 클릭 무시
+    - 바닥에 버튼 잔상/툴팁 없음
+    """
+    st.markdown(f"""
+    <style>
+      .overlay-wrap-{key} {{
+        position: relative;
+        height: 0;                    /* 레이아웃 공간 차지 X */
+        margin-top: -{height_px}px;    /* 바로 위 카드 영역을 덮도록 끌어올림 */
+        margin-bottom: -{height_px}px; /* 잔여 공간 제거 */
+        z-index: 10;
+      }}
+      .overlay-wrap-{key} .stButton > button {{
+        width: 100%;
+        height: {height_px}px;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        color: transparent !important;
+        cursor: pointer;
+        padding: 0 !important;
+        margin: 0 !important;
+        opacity: 0;                     /* 완전 투명 */
+        outline: none !important;
+        border-radius: {radius_px}px;   /* 카드와 동일 라운드 */
+      }}
+      .overlay-wrap-{key} .stButton > button:focus,
+      .overlay-wrap-{key} .stButton > button:hover {{
+        outline: none !important;
+        box-shadow: none !important;
+      }}
+    </style>
+    """, unsafe_allow_html=True)
 
+    # 카드 바로 아래에 렌더 → CSS가 위로 끌어올려 카드를 덮음
+    with st.container():
+        st.markdown(f"<div class='overlay-wrap-{key}'>", unsafe_allow_html=True)
+        clicked = st.button(" ", key=f"overlay_{key}")  # 라벨/툴팁 없음
+        st.markdown("</div>", unsafe_allow_html=True)
+    return clicked
 
-# --- 4) 메인 ---
+# --- 5) 메인 ---
 def main():
     st.title("🇩🇪 German Grammar Flashcard")
     st.markdown("흰색 카드 영역을 클릭하면 **정답 ↔ 문제**가 전환됩니다.")
@@ -256,7 +345,7 @@ def main():
     st.write(f"**진행률:** {pos + 1}/{len(df)}")
     st.markdown("---")
 
-    # 네비게이션 (원래 UI 유지)
+    # 네비게이션 (원본 유지)
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         if st.button("⬅️ 이전"):
@@ -281,13 +370,15 @@ def main():
             st.session_state.show_answer = False
             st.rerun()
 
-    # 카드 + 오버레이(카드 내부에 겹침)
+    # 카드 출력 + 카드와 동일 크기의 투명 오버레이
     if st.session_state.show_answer:
-        if draw_answer_card(row, st.session_state.mapping):   # 오버레이 버튼
+        display_answer_card(row, st.session_state.mapping)
+        if clickable_overlay(key="answer", height_px=270):  # 필요 시 290~310으로
             st.session_state.show_answer = False
             st.rerun()
     else:
-        if draw_question_card(row, st.session_state.mapping): # 오버레이 버튼
+        display_question_card(row, st.session_state.mapping)
+        if clickable_overlay(key="question", height_px=270):
             st.session_state.show_answer = True
             st.rerun()
 
