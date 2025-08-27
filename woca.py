@@ -34,7 +34,7 @@ st.markdown("""
 def load_data(file_path):
     try:
         # UTF-8-SIG 인코딩을 사용하여 BOM(Byte Order Mark)이 있는 CSV 파일도 처리
-        return pd.read_csv(file_path, encoding='utf-8-sig', sep=',')
+        return pd.read_csv(file_path, encoding='utf-8-sig', engine='python')
     except FileNotFoundError:
         st.error(f"데이터 파일({file_path})을 찾을 수 없습니다. GitHub 저장소에 파일이 올바르게 포함되었는지 확인하세요.")
         return None
