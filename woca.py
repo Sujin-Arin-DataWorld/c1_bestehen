@@ -1,222 +1,398 @@
-# German C1 TELC Flashcard App (v16 - Robust Click-to-Flip & Theme Filter)
-# 독일어 C1 TELC 플래시카드 앱 (v16 - 안정적인 카드 클릭 전환 및 주제 필터 기능)
+# German C1 TELC Flashcard App (v13 - Enhanced Grammar Explanation)
+# 독일어 C1 TELC 준비용 플래시카드 앱 (v13 - 문법 설명 강화 버전)
 
 import streamlit as st
 import pandas as pd
 import random
 
-# --- 1) 페이지 설정 & 기본 스타일 (CSS 일부 수정) ---
-st.set_page_config(page_title="German Grammar Flashcard", page_icon="🇩🇪", layout="centered")
+# --- 1. 페이지 설정 및 스타일 ---
+st.set_page_config(
+    page_title="German Grammar Flashcard",
+    page_icon="🇩🇪",
+    layout="centered"
+)
 
+# CSS 스타일
 st.markdown("""
 <style>
-    /* 카드를 감싸는 컨테이너: 이 안에서 모든 위치 조정이 일어남 */
-    .card-container {
-        position: relative; /* 자식 요소(버튼)의 absolute 위치 기준점 */
-        min-height: 290px;  /* 카드의 최소 높이와 일치시킴 */
-    }
-
-    /* 스트림릿 버튼을 투명 오버레이로 만드는 핵심 CSS */
-    .card-container .stButton > button {
-        position: absolute; /* 컨테이너를 기준으로 위치 고정 */
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: transparent;
-        color: transparent;
-        border: none;
-        box-shadow: none;
-        cursor: pointer;
-        z-index: 10; /* 다른 요소들보다 위에 있도록 설정 */
-    }
-
     .flashcard-front, .flashcard-back { 
-        background: white; color: #333; border: 2px solid #007bff; border-radius: 15px; 
-        padding: 30px 20px; margin-top: 15px; text-align: center; min-height: 250px; 
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1); display: flex; flex-direction: column; justify-content: center; 
+        background: white; 
+        color: #333; 
+        border: 2px solid #007bff; 
+        border-radius: 15px; 
+        padding: 30px 20px; 
+        margin-top: 15px; 
+        text-align: center; 
+        min-height: 250px; 
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1); 
+        display: flex; 
+        flex-direction: column; 
+        justify-content: center; 
     }
-    .german-word { font-size: 2.8em; font-weight: bold; color: #2c3e50; }
-    .korean-meaning { font-size: 2.2em; color: #e74c3c; margin: 20px 0; font-weight: bold; }
-    .pos-badge { background: #007bff; color: white; padding: 8px 16px; border-radius: 20px; font-size: 1.1em; display: inline-block; margin-top: 15px; border: 1px solid #0056b3; }
-    .example-box { background: #f8f9fa; border-left: 5px solid #007bff; border-radius: 8px; padding: 15px; margin: 20px 0; text-align: left; font-size: 1.1em; color: #333; }
-    .front-example { font-size: 1.4em; color: #555; margin-top: 10px; font-style: italic; }
-    .grammar-info { background: #e8f5e8; border: 1px solid #28a745; border-radius: 8px; padding: 15px; margin-top: 20px; text-align: left; color: #155724; }
-    .grammar-title { font-weight: bold; color: #155724; margin-bottom: 10px; font-size: 1.2em; }
-    .case-structure { background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 12px; margin: 10px 0; font-family: monospace; font-size: 1.1em; color: #856404; }
-    .grammar-explanation { background: #e7f3ff; border-left: 4px solid #007bff; padding: 12px; margin: 10px 0; font-size: 1.0em; color: #004085; }
-    .ko-example-translation { margin-top: 8px; color: #444; font-size: 1.05em; }
+    .german-word { 
+        font-size: 2.8em; 
+        font-weight: bold; 
+        color: #2c3e50; 
+    }
+    .korean-meaning { 
+        font-size: 2.2em; 
+        color: #e74c3c; 
+        margin: 20px 0; 
+        font-weight: bold; 
+    }
+    .pos-badge { 
+        background: #007bff; 
+        color: white; 
+        padding: 8px 16px; 
+        border-radius: 20px; 
+        font-size: 1.1em; 
+        display: inline-block; 
+        margin-top: 15px; 
+        border: 1px solid #0056b3; 
+    }
+    .example-box { 
+        background: #f8f9fa; 
+        border-left: 5px solid #007bff; 
+        border-radius: 8px; 
+        padding: 15px; 
+        margin: 20px 0; 
+        text-align: left; 
+        font-size: 1.1em; 
+        color: #333; 
+    }
+    .front-example { 
+        font-size: 1.4em; 
+        color: #555; 
+        margin-top: 10px; 
+        font-style: italic; 
+    }
+    .grammar-info { 
+        background: #e8f5e8; 
+        border: 1px solid #28a745; 
+        border-radius: 8px; 
+        padding: 15px; 
+        margin-top: 20px; 
+        text-align: left; 
+        color: #155724; 
+    }
+    .grammar-title { 
+        font-weight: bold; 
+        color: #155724; 
+        margin-bottom: 10px; 
+        font-size: 1.2em; 
+    }
+    .case-structure { 
+        background: #fff3cd; 
+        border: 1px solid #ffeaa7; 
+        border-radius: 8px; 
+        padding: 12px; 
+        margin: 10px 0; 
+        font-family: monospace; 
+        font-size: 1.1em; 
+        color: #856404; 
+    }
+    .grammar-explanation { 
+        background: #e7f3ff; 
+        border-left: 4px solid #007bff; 
+        padding: 12px; 
+        margin: 10px 0; 
+        font-size: 1.0em; 
+        color: #004085; 
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2) 데이터 로딩 & 유틸 (기존과 동일) ---
+
+# --- 2. 핵심 함수들 ---
+
 @st.cache_data
-def load_data(file_path_or_url):
+def load_data(file_path):
+    """가장 안정적인 방법으로 CSV 파일을 로드합니다."""
     try:
-        df = pd.read_csv(file_path_or_url, encoding='utf-8-sig', engine='python')
+        df = pd.read_csv(file_path, encoding='utf-8-sig', engine='python')
+        # CSV 로드 후 컬럼 이름의 앞뒤 공백을 모두 제거합니다.
         df.columns = df.columns.str.strip()
         return df
+    except FileNotFoundError:
+        st.error(f"데이터 파일 '{file_path}'을(를) 찾을 수 없습니다. GitHub 저장소에 파일이 올바르게 포함되었는지, 파일 이름이 정확한지 확인하세요.")
+        return None
     except Exception as e:
-        st.error(f"데이터 파일을 불러오는 데 실패했습니다: {e}")
-        st.info("GitHub에 올린 CSV 파일의 'Raw' 버튼을 누른 뒤, 그 주소를 복사해 코드에 붙여넣었는지 확인해주세요.")
+        st.error(f"CSV 파일을 읽는 중 오류가 발생했습니다: {e}")
         return None
 
 def standardize_columns(df):
-    cols_lower = [str(c).lower().strip() for c in df.columns]
-    cand = {'german_word': ['german_word','german','word','item','deutsch','wort'],'korean_meaning': ['korean_meaning','korean','meaning','bedeutung','의미','뜻'],'german_example': ['german_example_de','german_example','example','beispiel','예문','예시'],'ko_example_translation': ['ko_example_translation','example_ko','예문_번역','예문해석','korean_example'],'pos': ['pos','part of speech','wortart','품사'],'verb_case': ['verb_case','kasus (verb)'],'verb_prep': ['verb_prep','präposition (verb)'],'reflexive': ['reflexive','reflexiv','재귀'],'complement_structure': ['complement_structure','struktur','문장 구조'],'theme': ['theme','type','category','thema','kategorie','테마','유형'],}
-    mapping = {}
-    for k, opts in cand.items():
-        for o in opts:
-            if o in cols_lower:
-                mapping[k] = df.columns[cols_lower.index(o)]
+    """다양한 CSV 열 이름을 표준화된 이름으로 매핑합니다."""
+    columns_lower = [str(col).lower().strip() for col in df.columns]
+    column_candidates = {
+        'german_word': ['german_word', 'german', 'word', 'item', 'deutsch', 'wort'],
+        'korean_meaning': ['korean_meaning', 'korean', 'meaning', 'bedeutung', '의미', '뜻'],
+        'german_example': ['german_example_de', 'german_example', 'example', 'beispiel', '예문', '예시'],
+        'pos': ['pos', 'part of speech', 'wortart', '품사'],
+        'verb_case': ['verb_case', 'kasus (verb)'],
+        'verb_prep': ['verb_prep', 'präposition (verb)'],
+        'reflexive': ['reflexive', 'reflexiv', '재귀'],
+        'complement_structure': ['complement_structure', 'struktur', '문장 구조'],
+        'theme': ['theme', 'type', 'category', 'thema', 'kategorie', '테마', '유형']
+    }
+    found_mapping = {}
+    for standard_name, candidates in column_candidates.items():
+        for candidate in candidates:
+            if candidate in columns_lower:
+                original_col_name = df.columns[columns_lower.index(candidate)]
+                found_mapping[standard_name] = original_col_name
                 break
-    for req in ['german_word','korean_meaning']:
-        if req not in mapping:
-            st.error(f"필수 컬럼이 없습니다: {req}"); return None, {}
-    return df, mapping
+    required = ['german_word', 'korean_meaning']
+    missing = [col for col in required if col not in found_mapping]
+    if missing:
+        st.error(f"필수 컬럼을 찾을 수 없습니다: {', '.join(missing)}")
+        return None, {}
+    return df, found_mapping
 
 def safe_get(row, key, mapping, default=""):
+    """Pandas의 isna를 사용하여 더 안정적으로 값을 가져옵니다."""
     if key in mapping and mapping[key] in row:
-        v = row[mapping[key]]
-        return str(v) if not pd.isna(v) and str(v).strip() != "" else default
+        value = row[mapping[key]]
+        return str(value) if not pd.isna(value) and str(value).strip() != '' else default
     return default
-# --- (문법 설명 함수들은 기존과 동일하여 생략) ---
 
-# --- 3) 카드 UI 렌더 (st.markdown -> HTML 문자열 return으로 변경) ---
+def get_case_explanation(case_info):
+    """격 정보에 따른 상세 설명을 반환합니다."""
+    if not case_info:
+        return ""
+    
+    case_lower = case_info.lower()
+    explanations = []
+    
+    if 'nom' in case_lower:
+        explanations.append("**1격 (Nominativ)**: 주어 역할")
+    if 'akk' in case_lower:
+        explanations.append("**4격 (Akkusativ)**: 직접목적어 (무엇을/누구를)")
+    if 'dat' in case_lower:
+        explanations.append("**3격 (Dativ)**: 간접목적어 (누구에게/무엇에게)")
+    if 'gen' in case_lower:
+        explanations.append("**2격 (Genitiv)**: 소유격 (~의)")
+    
+    return " | ".join(explanations)
+
+def get_prep_explanation(prep_info):
+    """전치사에 따른 상세 설명을 반환합니다."""
+    if not prep_info:
+        return ""
+    
+    prep_explanations = {
+        'an': "접촉/위치 (3격: ~에서/~에게, 4격: ~로/~를 향해)",
+        'auf': "표면 위 (3격: ~위에서, 4격: ~위로)",
+        'bei': "근처/옆 (3격만: ~근처에서/~와 함께)",
+        'für': "위해/~동안 (4격만: ~을/를 위해)",
+        'gegen': "반대/~쪽으로 (4격만: ~에 반대하여/~쪽으로)",
+        'in': "안/속 (3격: ~안에서, 4격: ~안으로)",
+        'mit': "함께/수단 (3격만: ~와 함께/~로써)",
+        'nach': "방향/시간 후 (3격만: ~후에/~로)",
+        'über': "위/관하여 (3격: ~위에서, 4격: ~위로/~에 관하여)",
+        'um': "주위/시간 (4격만: ~주위에/~시에)",
+        'unter': "아래/사이 (3격: ~아래에서, 4격: ~아래로)",
+        'von': "~로부터/~에 의해 (3격만: ~로부터/~의)",
+        'vor': "앞/시간 전 (3격: ~앞에서/~전에, 4격: ~앞으로)",
+        'zu': "~에게/~로 (3격만: ~에게/~로)"
+    }
+    
+    prep_lower = prep_info.lower().strip()
+    return prep_explanations.get(prep_lower, f"전치사: {prep_info}")
+
 def display_question_card(row, mapping):
     german_word = safe_get(row, 'german_word', mapping, '단어 없음')
     german_example = safe_get(row, 'german_example', mapping)
-    # st.markdown 대신 HTML 문자열을 반환
-    return f'<div class="flashcard-front"><div class="german-word">{german_word}</div><div class="front-example">{german_example}</div></div>'
+    st.markdown(f"""
+    <div class="flashcard-front">
+        <div class="german-word">{german_word}</div>
+        <div class="front-example">{german_example}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 def display_answer_card(row, mapping):
+    """[뒷면] 정답 카드 표시 - 상세 문법 설명 포함"""
     german_word = safe_get(row, 'german_word', mapping, '단어 없음')
     korean_meaning = safe_get(row, 'korean_meaning', mapping, '의미 없음')
     pos = safe_get(row, 'pos', mapping, '품사 미상')
     
-    # 여러 정보를 모아 최종 HTML을 구성
-    card_html = f'<div class="flashcard-back"><div class="german-word">{german_word}</div><div class="korean-meaning">{korean_meaning}</div><div class="pos-badge">{pos}</div></div>'
+    st.markdown(f"""
+    <div class="flashcard-back">
+        <div class="german-word">{german_word}</div>
+        <div class="korean-meaning">{korean_meaning}</div>
+        <div class="pos-badge">{pos}</div>
+    </div>
+    """, unsafe_allow_html=True)
     
+    # 예문 표시
     german_example = safe_get(row, 'german_example', mapping)
-    ko_example = safe_get(row, 'ko_example_translation', mapping)
     if german_example:
-        trans_html = f"<div class='ko-example-translation'>🔹 번역: {ko_example}</div>" if ko_example else ""
-        card_html += f'<div class="example-box"><strong>🔸 예문:</strong> {german_example}{trans_html}</div>'
+        st.markdown(f"""
+        <div class="example-box">
+            <strong>🔸 예문:</strong> {german_example}
+        </div>
+        """, unsafe_allow_html=True)
+
+    # 📚 상세 문법 정보 표시
+    grammar_info = []
     
-    # (문법 정보 등 추가 정보 HTML 구성 로직도 여기에 포함시킬 수 있음)
-    # 지금은 편의상 카드 뒷면의 핵심 정보만 포함
+    # 동사인 경우의 상세 문법 분석
+    if "verb" in pos.lower() or "Verb" in pos:
+        # 재귀동사 확인
+        reflexive = safe_get(row, 'reflexive', mapping)
+        if reflexive.lower() in ['ja', 'yes', 'true']:
+            grammar_info.append("🔄 **재귀동사 (Reflexives Verb)** - sich와 함께 사용")
+        
+        # complement_structure 우선 표시 (가장 중요!)
+        complement_structure = safe_get(row, 'complement_structure', mapping)
+        prep = safe_get(row, 'verb_prep', mapping)  
+        case = safe_get(row, 'verb_case', mapping)
+        
+        if complement_structure:
+            st.markdown(f"""
+            <div class="case-structure">
+                <strong>📝 문장 구조:</strong> <code>{complement_structure}</code>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # complement_structure에 대한 추가 설명
+            structure_lower = complement_structure.lower()
+            explanations = []
+            if 'dat' in structure_lower and 'akk' in structure_lower:
+                explanations.append("**3격 + 4격 지배**: 누구에게(3격) 무엇을(4격) 주는 동사")
+            elif 'dat' in structure_lower:
+                explanations.append("**3격 지배**: 누구에게/무엇에게를 나타내는 간접목적어")
+            elif 'akk' in structure_lower:  
+                explanations.append("**4격 지배**: 무엇을/누구를을 나타내는 직접목적어")
+            elif 'gen' in structure_lower:
+                explanations.append("**2격 지배**: 소유관계나 특별한 의미관계를 나타냄")
+            
+            if explanations:
+                explanation_text = "<br/>".join(explanations)
+                st.markdown(f"""
+                <div class="grammar-explanation">
+                    {explanation_text}
+                </div>
+                """, unsafe_allow_html=True)
+        
+        # 전치사 정보가 있는 경우
+        if prep:
+            prep_explanation = get_prep_explanation(prep)
+            st.markdown(f"""
+            <div class="grammar-explanation">
+                <strong>🔗 전치사:</strong> <code>{prep}</code><br/>
+                {prep_explanation}
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # 격 정보만 있는 경우 (complement_structure가 없을 때)
+        elif case and not complement_structure:
+            case_explanation = get_case_explanation(case)
+            if case_explanation:
+                st.markdown(f"""
+                <div class="grammar-explanation">
+                    <strong>📋 격 지배:</strong> {case}<br/>
+                    {case_explanation}
+                </div>
+                """, unsafe_allow_html=True)
     
-    return card_html
+    # 명사-동사 구조나 기타 품사의 경우
+    elif "Nomen-Verb" in pos:
+        complement_structure = safe_get(row, 'complement_structure', mapping)
+        if complement_structure:
+            st.markdown(f"""
+            <div class="case-structure">
+                <strong>📝 명사-동사 구조:</strong> <code>{complement_structure}</code>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    # 테마 정보
+    theme = safe_get(row, 'theme', mapping)
+    if theme:
+        grammar_info.append(f"🏷️ **테마**: {theme}")
+        
+    # 기타 문법 정보가 있는 경우 표시
+    if grammar_info:
+        info_html = "".join([f"<li>{info}</li>" for info in grammar_info])
+        st.markdown(f"""
+        <div class="grammar-info">
+            <div class="grammar-title">📚 추가 정보</div>
+            <ul>{info_html}</ul>
+        </div>
+        """, unsafe_allow_html=True)
 
-
-# --- 4) 세션 상태 초기화 (기존과 동일) ---
-def initialize_session_state(df, mapping, selected_themes):
-    theme_col = mapping.get('theme')
-    if selected_themes and "전체 보기" not in selected_themes and theme_col:
-        filtered_df = df[df[theme_col].isin(selected_themes)].copy()
-    else:
-        filtered_df = df.copy()
-
-    st.session_state.filtered_df = filtered_df
-    st.session_state.indices = list(filtered_df.index)
-    random.shuffle(st.session_state.indices)
-    st.session_state.current_idx_pos = 0
-    st.session_state.show_answer = False
-    st.session_state.data_loaded = True
-
-# --- 5) 메인 로직 (핵심 변경!) ---
+# --- 3. 메인 앱 실행 로직 ---
 def main():
     st.title("🇩🇪 German Grammar Flashcard")
-    st.markdown("흰색 카드 영역을 클릭하면 **정답 ↔ 문제**가 전환됩니다.")
+    st.markdown("단어와 예문을 보고, 문법 구조까지 한번에 학습하세요!")
     
-    # ❗️ 중요: 이 URL을 자신의 GitHub Raw CSV 파일 주소로 변경하세요!
-    DATA_URL = "https://raw.githubusercontent.com/Deplim/german_voca/main/c1_telc_voca.csv" 
+    # CSV 파일 로드
+    df = load_data('c1_telc_voca.csv')
+
+    if df is None:
+        st.stop()
+
+    if 'data_loaded' not in st.session_state:
+        st.session_state.df, st.session_state.mapping = standardize_columns(df)
+        if st.session_state.df is not None:
+            st.session_state.indices = list(range(len(st.session_state.df)))
+            random.shuffle(st.session_state.indices)
+            st.session_state.current_idx_pos = 0
+            st.session_state.show_answer = False
+            st.session_state.data_loaded = True
     
-    if 'full_df' not in st.session_state:
-        full_df = load_data(DATA_URL)
-        if full_df is None: st.stop()
-        st.session_state.full_df, st.session_state.mapping = standardize_columns(full_df)
+    if st.session_state.data_loaded:
+        indices = st.session_state.indices
+        current_idx_pos = st.session_state.current_idx_pos
+        current_word_index = indices[current_idx_pos]
+        current_row = st.session_state.df.iloc[current_word_index]
 
-    if st.session_state.full_df is None: st.stop()
-    full_df = st.session_state.full_df
-    mapping = st.session_state.mapping
-    
-    # --- 사이드바 (기존과 동일) ---
-    with st.sidebar:
-        st.header("⚙️ 학습 설정")
-        theme_col = mapping.get('theme')
-        all_themes = sorted(list(full_df[theme_col].dropna().unique())) if theme_col else []
-
-        selected_themes = ["전체 보기"]
-        if all_themes:
-            selected_themes = st.multiselect("학습할 주제를 선택하세요:", options=["전체 보기"] + all_themes, default=["전체 보기"])
-            if not selected_themes: selected_themes = ["전체 보기"]
-            if len(selected_themes) > 1 and "전체 보기" in selected_themes: selected_themes.remove("전체 보기")
+        st.progress((current_idx_pos + 1) / len(df))
+        st.write(f"**진행률:** {current_idx_pos + 1}/{len(df)}")
+        st.markdown("---")
         
-        if 'last_filter' not in st.session_state or st.session_state.last_filter != selected_themes:
-            initialize_session_state(full_df, mapping, selected_themes)
-            st.session_state.last_filter = selected_themes
+        # 버튼 컨트롤
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            if st.button("⬅️ 이전"):
+                if current_idx_pos > 0:
+                    st.session_state.current_idx_pos -= 1
+                    st.session_state.show_answer = False
+                    st.rerun()
+        with col2:
+            button_text = "🔄 문제로" if st.session_state.show_answer else "💡 정답 보기"
+            if st.button(button_text, use_container_width=True):
+                st.session_state.show_answer = not st.session_state.show_answer
+                st.rerun()
+        with col3:
+            if st.button("➡️ 다음"):
+                if current_idx_pos < len(df) - 1:
+                    st.session_state.current_idx_pos += 1
+                    st.session_state.show_answer = False
+                    st.rerun()
+        with col4:
+            if st.button("🔀 섞기"):
+                random.shuffle(st.session_state.indices)
+                st.session_state.current_idx_pos = 0
+                st.session_state.show_answer = False
+                st.rerun()
 
-    if not st.session_state.data_loaded or st.session_state.filtered_df.empty:
-        st.warning("선택한 주제에 해당하는 단어가 없습니다."); st.stop()
+        # 카드 표시
+        if st.session_state.show_answer:
+            display_answer_card(current_row, st.session_state.mapping)
+        else:
+            display_question_card(current_row, st.session_state.mapping)
         
-    filtered_df = st.session_state.filtered_df
-    indices = st.session_state.indices
-    pos = st.session_state.current_idx_pos
-    current_row = filtered_df.loc[indices[pos]]
-    total_words = len(filtered_df)
-
-    st.info(f"💡 현재 학습 중인 주제: **{', '.join(selected_themes)}**")
-    st.progress((pos + 1) / total_words)
-    st.write(f"**진행률:** {pos + 1}/{total_words}")
-    st.markdown("---")
-
-    # --- 네비게이션 버튼 (기존과 동일) ---
-    c1, c2, c3 = st.columns([1, 1, 1])
-    if c1.button("⬅️ 이전", use_container_width=True):
-        if pos > 0:
-            st.session_state.current_idx_pos -= 1; st.session_state.show_answer = False; st.rerun()
-    if c2.button("➡️ 다음", use_container_width=True):
-        if pos < total_words - 1:
-            st.session_state.current_idx_pos += 1; st.session_state.show_answer = False; st.rerun()
-    if c3.button("🔀 섞기", use_container_width=True):
-        initialize_session_state(full_df, mapping, selected_themes); st.rerun()
-
-    # --- ✨ 새롭고 안정적인 카드 표시 및 클릭 로직 ---
-    card_html_content = ""
-    if st.session_state.show_answer:
-        # 뒷면 카드 HTML 가져오기
-        card_html_content = display_answer_card(current_row, mapping)
-    else:
-        # 앞면 카드 HTML 가져오기
-        card_html_content = display_question_card(current_row, mapping)
-
-    # 컨테이너와 투명 버튼으로 클릭 기능 구현
-    with st.container():
-        # 카드 컨테이너 시작
-        st.markdown('<div class="card-container">', unsafe_allow_html=True)
-        
-        # 실제 카드 내용(HTML) 그리기
-        st.markdown(card_html_content, unsafe_allow_html=True)
-        
-        # 전체를 덮는 투명 버튼 (CSS가 알아서 위치를 잡아줌)
-        if st.button(" ", key="card_flip_button"):
-            st.session_state.show_answer = not st.session_state.show_answer
-            st.rerun()
+        # 사이드바
+        with st.sidebar:
+            st.header("📊 학습 현황")
+            st.metric("총 단어 수", len(df))
+            st.metric("현재 위치", current_idx_pos + 1)
+            st.metric("남은 단어", len(df) - current_idx_pos - 1)
             
-        # 카드 컨테이너 끝
-        st.markdown('</div>', unsafe_allow_html=True)
-
-
-    # --- 사이드바 학습 현황 (기존과 동일) ---
-    with st.sidebar:
-        st.header("📊 학습 현황")
-        st.metric("총 단어 수 (선택됨)", total_words)
-        st.metric("현재 위치", pos + 1)
-        st.metric("남은 단어", total_words - pos - 1)
-        if 'pos' in mapping:
-            st.write("**품사별 분포 (선택됨):**")
-            st.bar_chart(filtered_df[mapping['pos']].value_counts())
+            if 'pos' in st.session_state.mapping:
+                pos_col = st.session_state.mapping['pos']
+                st.write("**품사별 분포:**")
+                st.bar_chart(df[pos_col].value_counts())
 
 if __name__ == "__main__":
     main()
