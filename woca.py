@@ -1,6 +1,3 @@
-정답보기 누르면 한글 뜻 밑에 ko_example_translation 도 같이 나왔으면 좋겠어 그리고 지금 정답보기를 눌러야 답이 보이는데 흰색 바탕을 눌러도 정답으로 넘어가고 문제로 돌아가는 기능이 되었으면 좋겠어.# German C1 TELC Flashcard App (v13 - Enhanced Grammar Explanation)
-# 독일어 C1 TELC 준비용 플래시카드 앱 (v13 - 문법 설명 강화 버전)
-
 import streamlit as st
 import pandas as pd
 import random
