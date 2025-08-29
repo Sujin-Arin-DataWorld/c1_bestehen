@@ -499,94 +499,49 @@ def render_grammar_info(row: pd.Series, mapping: Dict[str, str], pos: str) -> No
         </div>
         """, unsafe_allow_html=True)
 
-# --- 5) JavaScript를 이용한 개선된 클릭 오버레이 ---
-def create_click_overlay(card_id: str) -> bool:
-    """JavaScript를 이용해 정확한 클릭 감지를 구현합니다."""
-    
-    # 고유 키 생성
-    overlay_key = f"overlay_{card_id}_{random.randint(1000, 9999)}"
-    
-    # JavaScript 코드
-    js_code = f"""
-    <script>
-        (function() {{
-            // 이전 오버레이 제거
-            var existingOverlay = document.getElementById('{overlay_key}');
-            if (existingOverlay) {{
-                existingOverlay.remove();
-            }}
-            
-            // 카드 컨테이너 찾기
-            var cardContainer = document.querySelector('.card-container:last-of-type');
-            if (!cardContainer) return;
-            
-            // 투명 오버레이 생성
-            var overlay = document.createElement('div');
-            overlay.id = '{overlay_key}';
-            overlay.className = 'click-overlay';
-            overlay.style.cssText = `
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: transparent;
-                border: none;
-                border-radius: 20px;
-                cursor: pointer;
-                z-index: 10;
-                transition: background 0.2s ease;
-            `;
-            
-            // 호버 효과
-            overlay.addEventListener('mouseenter', function() {{
-                this.style.background = 'rgba(0, 123, 255, 0.05)';
-            }});
-            
-            overlay.addEventListener('mouseleave', function() {{
-                this.style.background = 'transparent';
-            }});
-            
-            // 클릭 이벤트
-            overlay.addEventListener('click', function(e) {{
-                e.preventDefault();
-                e.stopPropagation();
-                
-                // Streamlit의 상태 업데이트 트리거
-                var event = new CustomEvent('cardFlip', {{
-                    detail: {{ cardId: '{card_id}' }}
-                }});
-                document.dispatchEvent(event);
-            }});
-            
-            // 카드 컨테이너에 오버레이 추가
-            cardContainer.style.position = 'relative';
-            cardContainer.appendChild(overlay);
-        }})();
-    </script>
-    """
-    
-    st.markdown(js_code, unsafe_allow_html=True)
-    
-    # 클릭 감지를 위한 숨겨진 버튼
-    click_detected = st.button(
-        "클릭 감지용", 
-        key=f"hidden_{overlay_key}",
-        help="카드를 클릭하세요",
-        type="secondary",
-        use_container_width=False
-    )
-    
-    # CSS로 버튼 숨기기
-    st.markdown(f"""
+# --- 5) 카드 전체를 덮는 투명 버튼 오버레이 (권장) ---
+def create_card_click_area() -> bool:
+    """카드 클릭을 위한 투명 버튼 오버레이"""
+    st.markdown("""
     <style>
-        button[data-testid="baseButton-secondary"][title="카드를 클릭하세요"] {{
-            display: none !important;
-        }}
+        .card-click-btn {
+            position: relative;
+            margin-top: -360px;   /* 카드 높이만큼 위로 올림 */
+            height: 350px;
+            width: 100%;
+            z-index: 10;
+            margin-bottom: -350px; /* 아래 공간 회수 */
+        }
+        .card-click-btn .stButton > button {
+            width: 100% !important;
+            height: 350px !important;
+            background: transparent !important;
+            border: none !important;
+            border-radius: 20px !important;
+            cursor: pointer !important;
+            opacity: 0 !important;   /* 완전 투명 */
+            margin: 0 !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+        }
+        .card-click-btn .stButton > button:hover {
+            background: rgba(0, 123, 255, 0.05) !important;
+            border: 2px solid rgba(0, 123, 255, 0.3) !important;
+            opacity: 1 !important;   /* 호버 시 살짝 보이게 */
+        }
+        .card-click-btn .stButton > button:focus {
+            outline: none !important;
+            box-shadow: none !important;
+        }
     </style>
     """, unsafe_allow_html=True)
-    
-    return click_detected
+
+    st.markdown('<div class="card-click-btn">', unsafe_allow_html=True)
+    # ✅ 고정 key를 써야 클릭 상태가 유지됩니다.
+    clicked = st.button("", key="flip_card_overlay_btn", help="카드를 클릭해서 뒤집어보세요!")
+    st.markdown('</div>', unsafe_allow_html=True)
+    return clicked
+
 
 # --- 6) 필터링 기능 ---
 def create_filter_section(df: pd.DataFrame, mapping: Dict[str, str]) -> Dict[str, any]:
@@ -1047,10 +1002,12 @@ def main():
         card_id = "question"
     
     # 클릭 오버레이 - 개선된 버전
-    if create_click_overlay(card_id):
+    # 카드 전체 클릭(투명 버튼)으로 뒤집기
+    if create_card_click_area():
         st.session_state.show_answer = not st.session_state.show_answer
         stats.increment_flips()
         st.rerun()
+
     
     st.markdown('</div>', unsafe_allow_html=True)
     
